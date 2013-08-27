@@ -1,11 +1,13 @@
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * primeMProc.c
+ * Operating Systems - CS311_400
+ * Author: Nathan Cochran
+ * Date: 8/26/2013
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "primeUtils.h"
 
 //Function Prototypes:
-int main(int argc, char *argv[]);
+long nano_diff(struct timespec * begin, struct timespec * end);
 int *map_prime_shm(int shm_fd, unsigned int max);
 int create_prime_shm(void);
 int open_prime_shm(unsigned int max);
@@ -22,6 +24,9 @@ int main(int argc, char * argv[]) {
     int * psbl_primes;
     pid_t * pids;
     struct options opts;
+    struct timespec begin, end;
+
+    clock_gettime(CLOCK_REALTIME, &begin);
 
     //Get command line arguments:
     get_options(argc, argv, &opts);
@@ -69,9 +74,30 @@ int main(int argc, char * argv[]) {
     //Unlink the shared memory object:
     unlink_prime_shm();
 
+    clock_gettime(CLOCK_REALTIME, &end);
+
+    if(TIME) {
+        printf("Time: %ld\n", nano_diff(&begin, &end));
+    }
+
     return EXIT_SUCCESS;
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Returns the difference, in nanoseconds, between the two timespecs
+ * Param:   struct timespec * begin -  The earlier timespec
+ * Param:   struct timespec * end -  The later timespec
+ * Return:  long -  The different, in nanoseconds
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+long nano_diff(struct timespec * begin, struct timespec * end) {
+    return (BILLION * (end->tv_sec - begin->tv_sec) + (end->tv_nsec - begin->tv_nsec));
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Creates a shared memory object called "prime_shm", returns the fd
+ * Param:   void
+ * Return:  int -  The file descriptor representing the shared memory object
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int create_prime_shm(void) {
     int shm_fd;
 
@@ -85,6 +111,11 @@ int create_prime_shm(void) {
 }
 
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Opens the shared memory object called "prime_shm", returns the fd
+ * Param:   unsigned int max -  The max prime
+ * Return:  int -  The file descriptor representing the shared memory object
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int open_prime_shm(unsigned int max) {
     int shm_fd;
 
@@ -97,6 +128,12 @@ int open_prime_shm(unsigned int max) {
     return shm_fd;;
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Maps the shared memory object prime_shm to a region of memory, returning the address
+ * Param:   int shm_fd -  The file descriptor of the shared memory object to map
+ * Param:   unsigned int max -  The max prime
+ * Return:  int * -  The address of the newly mapped shared memory object
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int * map_prime_shm(int shm_fd, unsigned int max) {
     int size;
     int * addr;
@@ -119,6 +156,12 @@ int * map_prime_shm(int shm_fd, unsigned int max) {
     return addr;
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Unmaps the shared memory object prime_shm from the region in memory specified by addr
+ * Param:   void * addr -  The address of the region to unmap
+ * Param:   unsigned int max -  The max prime
+ * Return:  void
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void unmap_prime_shm(void * addr, unsigned int max) {
     int size;
     size = (max/8) + 1;
@@ -130,6 +173,11 @@ void unmap_prime_shm(void * addr, unsigned int max) {
     }
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Unlinks the prime_shm shared memory object, permanently removing it
+ * Param:   void
+ * Return:  void
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void unlink_prime_shm(void) {
     if(shm_unlink("prime_shm") == -1) {
         perror("Error unlinking shared memory object");
@@ -137,6 +185,12 @@ void unlink_prime_shm(void) {
     }
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Creates num_procs subprocesses to sieve the bit array
+ * Param:   int num_procs -  The number of subprocesses to create
+ * Param:   unsigned int max -  The max prime
+ * Return:  pid_t * -  List of pids of the newly created children
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 pid_t * create_children(int num_procs, unsigned int max) {
     int i;
     unsigned int low, high;
@@ -153,6 +207,13 @@ pid_t * create_children(int num_procs, unsigned int max) {
     return pids;
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Creates a child process which seives the numbers in the range specified by low and high
+ * Param:   int low -  The lower bound of the interval to sieve
+ * Param:   int high -  The upper bound of the interval to sieve
+ * Param:   unsigned int max -  The max prime
+ * Return:  pid_t -  The pid of the newly created process
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 pid_t create_child(int low, int high, unsigned int max) {
     int shm_fd;
     pid_t pid;
@@ -188,6 +249,12 @@ pid_t create_child(int low, int high, unsigned int max) {
 }
 
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Waits on all of the children specified in pids
+ * Param:   int num_procs -  The number of children to wait on
+ * Param:   pid_t * pids -  The pids of the children to wait on
+ * Return:  void
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void wait_on_children(int num_procs, pid_t * pids) {
     int i;
 
@@ -203,11 +270,21 @@ void wait_on_children(int num_procs, pid_t * pids) {
     free(pids);
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Handler for SIGINT - unlinks the shared memory region before terminating
+ * Param:   int sig -  The signal
+ * Return:  void
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void sigint_handler(int sig) {
     unlink_prime_shm();
     exit(EXIT_SUCCESS);
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Installs the handler for SIGINT
+ * Param:   void
+ * Return:  void
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void install_sigint_handler(void) {
     struct sigaction sigint;
 
