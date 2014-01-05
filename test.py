@@ -41,14 +41,12 @@ def main():
 	# Print results:
 	print "\nAverage times (nanoseconds): "
     for prog in progs:
-    	for run in range(0, num_runs):
-            print "\nRun #" + str(run+1) + ":"
-            for limit in limits:
-                for c in concurrency:
-                    cmd = " ".join([prog, " -c ", str(c), " -m ", str(limit), " -q "])
-                    print cmd + ":"
-                    avg_times[limit][c] = avg_times[limit][c]/num_runs
-                    print avg_times[limit][c]
+        for limit in limits:
+            for c in concurrency:
+                cmd = " ".join([prog, " -c ", str(c), " -m ", str(limit), " -q "])
+                print cmd + ":"
+                avg_times[limit][c] = avg_times[limit][c]/num_runs
+                print avg_times[limit][c]
 
 if __name__ == "__main__":
 	main();

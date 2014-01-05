@@ -77,7 +77,7 @@ pthread_t * create_threads(int num, int * psbl_primes, unsigned int max) {
         sa->high = get_high(num, max, i);
         sa->max = max;
 
-        printf("Thread: %d, Max: %u, Low: %u, High: %u\n", i, max, sa->low, sa->high);
+        //printf("Thread: %d, Max: %u, Low: %u, High: %u\n", i, max, sa->low, sa->high);
 
         //Create a new sieve thread:
         if((errno = pthread_create(&threads[i], NULL, (void *)thread_sieve, (void *) sa)) != 0) {
